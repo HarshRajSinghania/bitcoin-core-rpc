@@ -1717,6 +1717,30 @@ def test_the_max_body_size_bounds_what_the_session_transport_holds(
         transport(request, DEFAULT_TIMEOUT)
 
 
+def test_session_transport_truncates_an_oversized_error_body() -> None:
+    """A 4xx/5xx body is cut to MAX_ERROR_BODY_SIZE, not refused.
+
+    SessionTransport used to read every status against max_body_size
+    without truncate, so a legacy 1.1 rpc error under HTTP 500 that
+    was larger than the constructor limit became a FetchError with no
+    status. urlopen_transport already truncates failures; this is the
+    same bound on the session path.
+    """
+    payload = b"e" * (MAX_ERROR_BODY_SIZE + 50)
+    connection = FakeConnection(
+        FakeResponse(500, payload, content_length=str(len(payload)))
+    )
+    transport = SessionTransport(
+        max_body_size=100, connection_factory=_connection_factory(connection)
+    )
+    request = Request(URL, method="POST", data=b"{}")
+
+    status, body = transport(request, DEFAULT_TIMEOUT)
+
+    assert status == 500
+    assert body == payload[:MAX_ERROR_BODY_SIZE]
+
+
 def test_the_session_transport_deadline_bounds_a_dripping_reply(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

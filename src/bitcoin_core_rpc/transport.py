@@ -896,9 +896,24 @@ class SessionTransport:
             )
 
             try:
-                body_bytes = _read_bounded(
-                    response, self._max_body_size, request.full_url, deadline
-                )
+                # A 4xx/5xx body is the node's diagnosis, not the
+                # answer the caller sized `max_body_size` for. The same
+                # bound `urlopen_transport` uses on HTTPError applies
+                # here so a legacy 1.1 rpc error under HTTP 500 still
+                # surfaces as that error rather than a FetchError about
+                # the page being larger than the success-body limit.
+                if response.status >= 400:
+                    body_bytes = _read_bounded(
+                        response,
+                        MAX_ERROR_BODY_SIZE,
+                        request.full_url,
+                        deadline,
+                        truncate=True,
+                    )
+                else:
+                    body_bytes = _read_bounded(
+                        response, self._max_body_size, request.full_url, deadline
+                    )
             except BaseException:
                 # A status line did arrive -- the class docstring's line
                 # the reconnect must not cross -- so this is never
