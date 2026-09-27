@@ -1175,13 +1175,13 @@ class SessionTransport:
             )
 
             try:
-                # A 4xx/5xx body is the node's diagnosis, not the
-                # answer the caller sized `max_body_size` for. The same
-                # bound `http_request` reads `urlopen_transport`'s HTTPError
-                # against applies here so a legacy 1.1 rpc error under
-                # HTTP 500 still surfaces as that error rather than a
-                # FetchError about the page being larger than the
-                # success-body limit.
+                # A body under a status from 400 up is the node's
+                # diagnosis, not the answer the caller sized
+                # `max_body_size` for. The same bound `http_request` reads
+                # `urlopen_transport`'s HTTPError against applies here so a
+                # legacy 1.1 rpc error under HTTP 500 still surfaces as
+                # that error rather than a FetchError about the page being
+                # larger than the success-body limit.
                 if response.status >= _CLIENT_ERROR:
                     body_bytes = _read_bounded(
                         response,
@@ -1190,10 +1190,20 @@ class SessionTransport:
                         deadline,
                         truncate=True,
                     )
+                    # a cut body leaves the rest of it on the wire, which
+                    # the next call's probe cannot see before it arrives:
+                    # that call's request would go out whole and its
+                    # `getresponse()` would read this one's leftovers.
+                    # `http.client` closes a response once a read reaches
+                    # the end of its body, so an open one is a cut one
+                    read_to_the_end = response.isclosed()
                 else:
+                    # a success read stops only at the end of the body or
+                    # by raising, so reaching here is reaching the end
                     body_bytes = _read_bounded(
                         response, max_body_size, request.full_url, deadline
                     )
+                    read_to_the_end = True
             except BaseException:
                 # A status line did arrive -- the class docstring's line
                 # the reconnect must not cross -- so this is never
@@ -1207,6 +1217,10 @@ class SessionTransport:
                 # close`, or no keep-alive at all under HTTP/1.0 -- so
                 # holding it for a next call would hold a socket the
                 # other end has already given up on.
+                self._connections.pop(key).close()
+            elif not read_to_the_end:
+                # the exchange did not complete: the rest of a cut error
+                # body is still to come over this connection
                 self._connections.pop(key).close()
 
             return response.status, body_bytes
