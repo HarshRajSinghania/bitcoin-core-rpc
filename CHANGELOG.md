@@ -174,6 +174,18 @@ It points at the live workflow's `versions` job instead (closes #550).
 it, and `COMPARISON.md` says python-bitcoinrpc rounds it through `float` where
 Core's copy sends a string (closes #545) (closes #551).
 
+### `SessionTransport` reads each answer against the call's `max_body_size`
+
+`http_request` hands it to `__call__` as it does to `urlopen_transport`, so it
+widens or tightens the read where the constructor's limit bounded it, and the
+constructor takes none (closes #543).
+
+### The timeout bounds the name lookup, the status line and the headers too
+
+A peer dripping headers held a call open under either transport; the call now
+waits for no lookup, connect, handshake, send or recv past the deadline, which
+a `connection_factory`'s connection is typed to carry (closes #542).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
