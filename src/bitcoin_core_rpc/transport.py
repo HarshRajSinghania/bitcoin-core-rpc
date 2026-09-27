@@ -1177,11 +1177,12 @@ class SessionTransport:
             try:
                 # A 4xx/5xx body is the node's diagnosis, not the
                 # answer the caller sized `max_body_size` for. The same
-                # bound `urlopen_transport` uses on HTTPError applies
-                # here so a legacy 1.1 rpc error under HTTP 500 still
-                # surfaces as that error rather than a FetchError about
-                # the page being larger than the success-body limit.
-                if response.status >= 400:
+                # bound `http_request` reads `urlopen_transport`'s HTTPError
+                # against applies here so a legacy 1.1 rpc error under
+                # HTTP 500 still surfaces as that error rather than a
+                # FetchError about the page being larger than the
+                # success-body limit.
+                if response.status >= _CLIENT_ERROR:
                     body_bytes = _read_bounded(
                         response,
                         MAX_ERROR_BODY_SIZE,
