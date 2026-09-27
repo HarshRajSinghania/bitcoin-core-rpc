@@ -862,7 +862,13 @@ class _Connection(Protocol):
         """Send a request over this connection, connecting first if idle."""
 
     def getresponse(self) -> Any:
-        """Return the response to the request just sent."""
+        """Return the response to the request just sent.
+
+        `Any`, and so no contract a type checker holds a fake to: what
+        `SessionTransport` reads of it is `http.client.HTTPResponse`'s,
+        `isclosed()` included, asked after an error status to learn whether
+        the body was read to its end.
+        """
 
     def close(self) -> None:
         """Close the socket, discarding whatever this connection held."""
