@@ -141,6 +141,39 @@ A json array or object as a reply `id` is a `FetchError`, a generator a batch,
 and a member that is no pair or a str or non-iterable `calls` is a
 `BtcRpcTypeError`, `None` and `""` included (closes #546) (closes #547).
 
+### `SessionTransport` sends a request once when the read fails
+
+Where a reused connection closed after the whole request was written, the
+request went out again, though the node may have executed it; that is now a
+`FetchError`, and only a failed write is sent again (closes #541).
+
+### `SessionTransport` probes a kept connection with `select.poll`
+
+`select.select` raised `ValueError` on a reused socket whose descriptor was
+at or above `FD_SETSIZE`; the probe falls back to it only where `poll` does
+not exist, as on Windows (closes #552).
+
+### The live smoke run asks about the batch, the session and the chain check
+
+`call_batch`, `call_raw`, `SessionTransport`, `RpcChannel` and `assert_chain`
+now meet a live node, whose short `-rpcservertimeout` each `--protocol` run
+waits out once, for the session's idle close (closes #548).
+
+### The fixtures are written from Core's source, not recorded from it
+
+`ARCHITECTURE.md` and `rpc_smoke.py` now say so, as `tests/_data/README.md`
+does (closes #549).
+
+### `tests/_data/README.md` states no number of live Core versions
+
+It points at the live workflow's `versions` job instead (closes #550).
+
+### A `Decimal` parameter is written as the JSON number it is
+
+`call`, `call_raw` and `call_batch` send one digit for digit where they refused
+it, and `COMPARISON.md` says python-bitcoinrpc rounds it through `float` where
+Core's copy sends a string (closes #545) (closes #551).
+
 ## v2026.9.24
 
 ### Section 9's comment and placeholder rules land in this tree's own docs
